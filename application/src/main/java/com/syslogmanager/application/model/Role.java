@@ -1,29 +1,31 @@
 package com.syslogmanager.application.model;
 
-public enum Role {
-    ADMIN(1, "admin"),
-    TECHNICIAN(2, "technician");
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-    private final int id;
-    private final String label;
-
-    Role(int id, String label) {
-        this.id = id;
-        this.label = label;
-    }
-
-    public int getId() {
-        return id;
-    }
-
-    public String getLabel() {
-        return label;
-    }
-
-    public static Role fromId(int id) {
-        for (Role r : values()) {
-            if (r.id == id) return r;
-        }
-        throw new IllegalArgumentException("Unknown Role id: " + id);
-    }
+@Entity
+@Table(name = "roles")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class Role {
+    
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @Column(nullable = false, unique = true, length = 50)
+    private String name;
+    
+    @Column(length = 255)
+    private String description;
 }
