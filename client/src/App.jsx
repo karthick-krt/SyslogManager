@@ -1,24 +1,30 @@
-import { useEffect, useState } from "react";
-import api from "./services/api";
-import Login from "./Login";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import Login from "./components/Login/Login";
+import Home from "./components/Home/Home";
 
-function App() {
-  const [message, setMessage] = useState("");
-
-  useEffect(() => {
-    api.get("/api/home")
-      .then(res => setMessage(res.data))
-      .catch(err => console.error(err));
-  }, []);
-
-  return (
-    <div style={{ padding: "20px" }}>
-      <h1>My React + Spring Boot App</h1>
-      <p>{message}</p>
-      <hr />
-      <Login />
-    </div>
-  );
+function RequireAuth({ children }) {
+  try {
+    const auth = JSON.parse(localStorage.getItem("auth"));
+    if (auth && auth.token) return children;
+  } catch (e) {
+    // ignore parse errors
+  }
+  return <Navigate to="/login" replace />;
 }
 
-export default App;
+export default function App() {
+  return (
+    <Router>
+      <Routes>
+        {/* Default route */}
+        <Route path="/" element={<Navigate to="/home" replace />} />
+
+        {/* Login */}
+        <Route path="/login" element={<Login />} />
+
+        {/* Home/Dashboard (protected) */}
+        <Route path="/home" element={<RequireAuth><Home /></RequireAuth>} />
+      </Routes>
+    </Router>
+  );
+}

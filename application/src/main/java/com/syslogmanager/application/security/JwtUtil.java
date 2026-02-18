@@ -26,6 +26,20 @@ public class JwtUtil {
         return JWT.create()
                 .withSubject(username)
                 .withClaim("role", role)
+                // session id (sid) will be added by caller when needed
+                .withIssuedAt(now)
+                .withExpiresAt(exp)
+                .sign(alg);
+    }
+
+    public String generateToken(String username, String role, String sessionId) {
+        Algorithm alg = Algorithm.HMAC256(secret);
+        Date now = new Date();
+        Date exp = new Date(now.getTime() + expirationMinutes * 60 * 1000);
+        return JWT.create()
+                .withSubject(username)
+                .withClaim("role", role)
+                .withClaim("sid", sessionId)
                 .withIssuedAt(now)
                 .withExpiresAt(exp)
                 .sign(alg);

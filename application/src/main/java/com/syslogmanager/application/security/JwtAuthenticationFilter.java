@@ -7,6 +7,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import com.auth0.jwt.interfaces.DecodedJWT;
@@ -21,6 +22,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
     private final UserDetailsServiceImpl userDetailsService;
+
+    @Autowired
+    private com.syslogmanager.application.repository.SessionRepository sessionRepository;
 
     public JwtAuthenticationFilter(JwtUtil jwtUtil, UserDetailsServiceImpl userDetailsService) {
         this.jwtUtil = jwtUtil;
@@ -38,7 +42,28 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         if (token != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             try {
+                // If session-based logout is used, ensure the session (sid) exists
                 DecodedJWT decoded = jwtUtil.validateToken(token);
+                String sid = null;
+                try { sid = decoded.getClaim("sid").asString(); } catch (Exception ignore) {}
+                if (sid != null) {
+                    if (sessionRepository == null || !sessionRepository.existsBySessionId(sid)) {
+                        // session removed (logged out) — reject with 401
+                        response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Session invalidated");
+                        return;
+                    }
+                } else {
+                    // If no sid is present, disallow access for protected endpoints.
+                    // Allow the logout endpoint to proceed so it can return a helpful message.
+                    String path = request.getRequestURI();
+                    if (path != null && path.equals("/api/auth/logout")) {
+                        // allow controller to handle logout even if token lacks sid
+                    } else {
+                        response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Session invalidated");
+                        return;
+                    }
+                }
+
                 String username = decoded.getSubject();
                 var userDetails = userDetailsService.loadUserByUsername(username);
                 UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
