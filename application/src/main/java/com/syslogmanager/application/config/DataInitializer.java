@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import com.syslogmanager.application.model.User;
 import com.syslogmanager.application.model.Role;
 import com.syslogmanager.application.repository.UsersRepository;
@@ -18,6 +19,7 @@ public class DataInitializer implements ApplicationRunner {
 
     private final UsersRepository usersRepository;
     private final RolesRepository rolesRepository;
+    private final BCryptPasswordEncoder passwordEncoder;
 
     @Override
     public void run(ApplicationArguments args) throws Exception {
@@ -50,6 +52,16 @@ public class DataInitializer implements ApplicationRunner {
         String adminUsername = "admin";
 
         if (usersRepository.existsByUsername(adminUsername)) {
+            // If an admin user already exists, ensure the stored password is BCrypt-encoded.
+            // This handles the case where a plaintext password was previously persisted.
+            usersRepository.findByUsername(adminUsername).ifPresent(existing -> {
+                String stored = existing.getPassword();
+                if (stored == null || !stored.startsWith("$2")) {
+                    String toEncode = (stored == null || stored.isEmpty()) ? "admin" : stored;
+                    existing.setPassword(passwordEncoder.encode(toEncode));
+                    usersRepository.save(existing);
+                }
+            });
             return;
         }
 
@@ -57,12 +69,12 @@ public class DataInitializer implements ApplicationRunner {
                 .orElseThrow(() -> new IllegalStateException("ADMIN role not found"));
 
         User admin = User.builder()
-                .username(adminUsername)
-                .email("admin@local.domain")
-                .password("admin") // Note: In production, password should be encrypted
-                .role(adminRole)
-                .active(true)
-                .build();
+            .username(adminUsername)
+            .email("admin@local.domain")
+            .password(passwordEncoder.encode("admin"))
+            .role(adminRole)
+            .active(true)
+            .build();
 
         usersRepository.save(admin);
     }
